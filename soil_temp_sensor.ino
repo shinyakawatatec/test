@@ -1,21 +1,16 @@
 /*************************************************************************
 * File Name          : soil moisture and thermocouple sensors with ambient
 * Author             : nakata
-* Version            : V1.0
-* Date               : 2024/07/05
+* Version            : V1.2
+* Date               : 2024/07/18
 * board              : M5Stack Arduino -> M5StampPico
 * device             : M5StampPico - DiyStudio, K type thermocouple
 *************************************************************************/
 
 #include <WiFi.h>
 #include "Ambient.h"
-#include <SPI.h>
-#include "MCP3004.h"
 
 #define sensorVdd 25
-
-#define MCP3004_SS 19
-MCP3004 mcp3004(MCP3004_SS);
 
 WiFiClient client;
 Ambient ambient;
@@ -29,10 +24,16 @@ const char* password = "rmpb8ege5ysr3";
 unsigned int channelId = 78904;
 const char* writeKey = "3fda767ab40ea697";
 
-unsigned long interval = 3600; // unit: sec
-//unsigned long interval = 5; // unit: sec    //動作確認用短サイクル
+/*
+//動作確認用
+unsigned int channelId = 81004;
+const char* writeKey = "c9b3cff4e14ad866";
+*/
 
-const float V_ref = 3.03; // Reference voltage for ADC
+unsigned long interval = 3600; // unit: sec
+//unsigned long interval = 1; // unit: sec    //動作確認用短サイクル
+
+float V_ref = 3.3; // Initial reference voltage for ADC
 
 void setup() {
   Serial.begin(115200);
@@ -50,24 +51,32 @@ void setup() {
   pinMode(sensorVdd, OUTPUT);
   digitalWrite(sensorVdd, HIGH);
   delay(500);
-//  delay(50000); //to measure the Vref
+
+// delay(5000);  //動作確認用
   
+  // Read battery voltage
+  int a2 = analogRead(32); // Battery voltage (changed to pin 32)
+  float voltage_a2 = ((a2 / 4095.0) * 3.3 + 0.14) * 2; // Assuming voltage divider for battery measurement
+  V_ref = voltage_a2;
 
-  SPI.begin(18, 36, 26, 19); // SPI.begin(sck, miso, mosi, ss);
-  mcp3004.begin();
+  // Read other analog values
+  int a0 = analogRead(36); // Soil moisture sensor (pin 36)
+  int a1 = analogRead(33); // K type thermocouple (changed to pin 33)
 
-  int a0 = mcp3004.read(0);
-  int a1 = mcp3004.read(1);
+  // Convert to voltage and temperature
+  float voltage_a1 = ((a1 / 4095.0) * 3.3)+0.14;
+  float temperature_a1 = ((voltage_a1 - 1.25) / 0.005) + 4;
 
-  float voltage_a1 = (a1 / 1023.0) * V_ref;
-  float temperature_a1 = (voltage_a1 - 1.25) / 0.005;
- 
-  Serial.printf("Channel 0 value: %d\n", a0);
-  Serial.printf("Channel 1 value: %f℃\n", temperature_a1);
+  Serial.printf("Soil moisture sensor value: %d\n", a0);
+  Serial.printf("K type thermocouple value: %f℃\n", temperature_a1);
+  Serial.printf("Battery voltage: %fV\n", voltage_a2);
 
+
+  // Send data to Ambient
   ambient.begin(channelId, writeKey, &client);
   ambient.set(1, a0);
   ambient.set(4, temperature_a1);
+  ambient.set(5, voltage_a2);
   ambient.send();
 
   // WiFi Disconnect
