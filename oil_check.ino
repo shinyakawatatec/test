@@ -20,12 +20,15 @@ VL53L1X tofSensor;
 WiFiClient client;
 Ambient ambient;
 
-const char* ssid = "Buffalo-2G-1CB0";
-const char* password = "rmpb8ege5ysr3";
-//const char* ssid = "Buffalo-G-4E80";
+const char* ssid = "Buffalo-G-A380";     //第1工場WIFI
+const char* password = "kawatatec2014";
+
+//const char* ssid = "Buffalo-G-4E80";  //事務所WIFI
 //const char* password = "au6s5w4hrryeu";
-unsigned int channelId = 78904;
-const char* writeKey = "3fda767ab40ea697";
+
+//動作確認用チャンネルhttps://ambidata.io/bd/board.html?id=82010
+unsigned int channelId = 81004;
+const char* writeKey = "c9b3cff4e14ad866";
 
 unsigned long interval = 3600; // unit: sec
 //unsigned long interval = 5; // unit: sec test
@@ -35,7 +38,7 @@ void setup() {
   delay(1000);
 
   // WiFi Connect
-  Serial.printf("Connecting to %s\n", ssid);
+  Serial.printf("\nConnecting to %s\n", ssid);
   WiFi.begin(ssid, password);
   while(WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -67,8 +70,13 @@ void setup() {
 
   Serial.printf("Distance: %d mm\n", distance);
 
+  int digitalvoltage = analogRead(36);
+  float voltage = (digitalvoltage * 3.3) / 4096 * 2 + 0.28;
+  Serial.printf("Voltage: %.2f V\n", voltage);
+
   ambient.begin(channelId, writeKey, &client);
-  ambient.set(2, distance);
+  ambient.set(1, distance);
+  ambient.set(2, voltage);
   ambient.send();
 
   // WiFi Disconnect
